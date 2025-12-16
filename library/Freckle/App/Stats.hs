@@ -166,7 +166,7 @@ withStatsClient StatsSettings {..} f = do
   toPair = bimap (fromString . unpack) String
 
 withGauge
-  :: (MonadReader app m, HasStatsClient app, MonadUnliftIO m)
+  :: (HasStatsClient app, MonadReader app m, MonadUnliftIO m)
   => (Gauges -> Gauge)
   -> m a
   -> m a
@@ -178,13 +178,13 @@ withGauge getGauge f = do
   dec = decGauge
 
 lookupGauge
-  :: (MonadReader app m, HasStatsClient app)
+  :: (HasStatsClient app, MonadReader app m)
   => (Gauges -> Gauge)
   -> m Gauge
 lookupGauge accessor = view $ statsClientL . gaugesL . to accessor
 
 incGauge
-  :: (MonadReader app m, HasStatsClient app, MonadUnliftIO m)
+  :: (HasStatsClient app, MonadReader app m, MonadUnliftIO m)
   => Gauge
   -> m ()
 incGauge g@Gauge {..} = do
@@ -192,7 +192,7 @@ incGauge g@Gauge {..} = do
   publishGauge g
 
 decGauge
-  :: (MonadReader app m, HasStatsClient app, MonadUnliftIO m)
+  :: (HasStatsClient app, MonadReader app m, MonadUnliftIO m)
   => Gauge
   -> m ()
 decGauge g@Gauge {..} = do
@@ -200,7 +200,7 @@ decGauge g@Gauge {..} = do
   publishGauge g
 
 publishGauge
-  :: (MonadReader app m, HasStatsClient app, MonadUnliftIO m)
+  :: (HasStatsClient app, MonadReader app m, MonadUnliftIO m)
   => Gauge
   -> m ()
 publishGauge Gauge {..} = do
@@ -209,23 +209,23 @@ publishGauge Gauge {..} = do
 
 -- | Include the given tags on all metrics emitted from a block
 tagged
-  :: (MonadReader env m, HasStatsClient env) => [(Text, Text)] -> m a -> m a
+  :: (HasStatsClient env, MonadReader env m) => [(Text, Text)] -> m a -> m a
 tagged tags = local $ statsClientL . tagsL <>~ tags
 
 -- | Synonym for @'counter' 1@
 increment
-  :: (MonadUnliftIO m, MonadReader env m, HasStatsClient env) => Text -> m ()
+  :: (HasStatsClient env, MonadReader env m, MonadUnliftIO m) => Text -> m ()
 increment name = counter name 1
 
 counter
-  :: (MonadUnliftIO m, MonadReader env m, HasStatsClient env)
+  :: (HasStatsClient env, MonadReader env m, MonadUnliftIO m)
   => Text
   -> Int
   -> m ()
 counter = sendMetric Datadog.Counter
 
 gauge
-  :: (MonadUnliftIO m, MonadReader env m, HasStatsClient env)
+  :: (HasStatsClient env, MonadReader env m, MonadUnliftIO m)
   => Text
   -> Double
   -> m ()
@@ -236,10 +236,10 @@ gauge = sendMetric Datadog.Gauge
 -- The 'ToMetricValue' constraint can be satisfied by most numeric types and is
 -- assumed to be seconds.
 histogram
-  :: ( MonadUnliftIO m
-     , MonadReader env m
+  :: ( Datadog.ToMetricValue n
      , HasStatsClient env
-     , Datadog.ToMetricValue n
+     , MonadReader env m
+     , MonadUnliftIO m
      )
   => Text
   -> n
@@ -247,14 +247,14 @@ histogram
 histogram = sendMetric Datadog.Histogram
 
 histogramSince
-  :: (MonadUnliftIO m, MonadReader env m, HasStatsClient env)
+  :: (HasStatsClient env, MonadReader env m, MonadUnliftIO m)
   => Text
   -> UTCTime
   -> m ()
 histogramSince = histogramSinceBy toSeconds where toSeconds = round @_ @Int
 
 histogramSinceMs
-  :: (MonadUnliftIO m, MonadReader env m, HasStatsClient env)
+  :: (HasStatsClient env, MonadReader env m, MonadUnliftIO m)
   => Text
   -> UTCTime
   -> m ()
@@ -263,10 +263,10 @@ histogramSinceMs = histogramSinceBy toMilliseconds
   toMilliseconds = (* 1000) . realToFrac @_ @Double
 
 histogramSinceBy
-  :: ( MonadUnliftIO m
-     , MonadReader env m
+  :: ( Datadog.ToMetricValue n
      , HasStatsClient env
-     , Datadog.ToMetricValue n
+     , MonadReader env m
+     , MonadUnliftIO m
      )
   => (NominalDiffTime -> n)
   -> Text
@@ -278,10 +278,10 @@ histogramSinceBy f name time = do
   sendMetric Datadog.Histogram name delta
 
 sendMetric
-  :: ( MonadUnliftIO m
-     , MonadReader env m
+  :: ( Datadog.ToMetricValue v
      , HasStatsClient env
-     , Datadog.ToMetricValue v
+     , MonadReader env m
+     , MonadUnliftIO m
      )
   => Datadog.MetricType
   -> Text

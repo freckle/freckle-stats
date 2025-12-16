@@ -17,7 +17,7 @@ import UnliftIO.Concurrent (threadDelay)
 --
 -- Stats are collected via `ekg-core` and 'System.Metrics.registerGcMetrics'
 forkRtsStatPolling
-  :: (MonadUnliftIO m, MonadReader env m, HasStatsClient env) => m ()
+  :: (HasStatsClient env, MonadReader env m, MonadUnliftIO m) => m ()
 forkRtsStatPolling = do
   store <- liftIO Ekg.newStore
   liftIO $ Ekg.registerGcMetrics store
@@ -30,7 +30,7 @@ forkRtsStatPolling = do
     threadDelay $ seconds 1
 
 flushEkgSample
-  :: (MonadUnliftIO m, MonadReader env m, HasStatsClient env)
+  :: (HasStatsClient env, MonadReader env m, MonadUnliftIO m)
   => Text
   -> Ekg.Value
   -> m ()
